@@ -72,9 +72,6 @@ def upload_file_s3(
             's3', aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
         )
     except Exception:
-        send_error_mail_adv(
-            f'{myf} boto3.client', f'Error File Name: {file_name_s3}', traceback.format_exc(), apply_async=True
-        )
         return False
     try:
         response = s3_client.upload_file(file_name, bucket, file_name_s3, ExtraArgs=extra_args)
@@ -153,9 +150,6 @@ def get_file_from_s3(file_name_s3: str, out_put_path: str = '/var/www/others/oth
             's3', aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
         )
     except Exception as e:
-        send_error_mail.apply_async(
-            args=['Download S3 Error', f'Error File Name: {file_name_s3}', str(e), str(traceback.format_exc())]
-        )
         return False
     try:
         s3_client.download_file(bucket, file_name_s3, out_put_path)
@@ -166,13 +160,7 @@ def get_file_from_s3(file_name_s3: str, out_put_path: str = '/var/www/others/oth
         if e.response['Error']['Code'] == 'InvalidObjectState':
             print(f'{file_name_s3}, file found, but not supported object state')
             return False
-        send_error_mail.apply_async(
-            args=['Download S3 Error', f'Error File Name: {file_name_s3}', str(e), str(traceback.format_exc())]
-        )
     except Exception as e:
-        send_error_mail.apply_async(
-            args=['Download S3 Error', f'Error File Name: {file_name_s3}', str(e), str(traceback.format_exc())]
-        )
         return False
     return True
 
@@ -198,9 +186,6 @@ def get_fileobj_from_s3(file_name_s3: str, bucket=None) -> Tuple[bool, Union[str
             's3', aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
         )
     except Exception as e:
-        send_error_mail.apply_async(
-            args=['Download Obj S3 Error', f'Error S3 File Name: {file_name_s3}', str(e), str(traceback.format_exc())]
-        )
         return False, 'Issue with s3 client'
     try:
         data = BytesIO()
@@ -363,9 +348,6 @@ def move_specific_file_to_folder(
         )
     except Exception as e:
         exec_str = traceback.format_exc()
-        send_error_mail.apply_async(
-            args=['Move specfic file S3', f'bucket file: {bucket_name} {file_w_folder}', str(e), exec_str]
-        )
         return False
     # get file name from file_w_folder
     # folder_name = os.path.dirname(file_w_folder)
