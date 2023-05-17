@@ -14,12 +14,6 @@ import boto3
 from botocore.exceptions import ClientError
 from storages.backends.s3boto3 import S3Boto3Storage
 
-# Own Library
-from wakefit.celery import app
-from wakefit.utils.celery import MyCeleryTask
-
-# Local Library
-from .utils.mail_helpers import send_error_mail, send_error_mail_adv
 
 logger = logging.getLogger(__name__)
 
@@ -86,20 +80,8 @@ def upload_file_s3(
         response = s3_client.upload_file(file_name, bucket, file_name_s3, ExtraArgs=extra_args)
         logger.info(f's3 upload response is: {response}')
     except ClientError:
-        send_error_mail_adv(
-            f'{myf} upload_file ClientError',
-            f'Error File Name: {file_name_s3}',
-            traceback.format_exc(),
-            apply_async=True,
-        )
         return False
     except Exception:
-        send_error_mail_adv(
-            f'{myf} upload_file base exception',
-            f'Error File Name: {file_name_s3}',
-            traceback.format_exc(),
-            apply_async=True,
-        )
         return False
     if to_delete:
         os.remove(file_name)
@@ -230,13 +212,8 @@ def get_fileobj_from_s3(file_name_s3: str, bucket=None) -> Tuple[bool, Union[str
         if e.response['Error']['Code'] == 'InvalidObjectState':
             print(f'{file_name_s3}, file found, but not supported object state')
             return False, 'File found, but not supported object state'
-        send_error_mail.apply_async(
-            args=['Download S3 Error', f'Error File Name: {file_name_s3}', str(e), str(traceback.format_exc())]
-        )
+        
     except Exception as e:
-        send_error_mail.apply_async(
-            args=['Download S3 Error', f'Error File Name: {file_name_s3}', str(e), str(traceback.format_exc())]
-        )
         return False, 'Issue with s3 client getting file'
     return True, data
 
@@ -262,16 +239,10 @@ def delete_file_from_s3(file_name: str, bucket: str = None):
             's3', aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
         )
     except Exception as e:
-        send_error_mail.apply_async(
-            args=['Delete S3 Error', f'Error with File: {file_name}', str(e), traceback.format_exc()]
-        )
         return False
     try:
         s3_client.delete_object(Bucket=bucket, Key=file_name)
     except Exception as e:
-        send_error_mail.apply_async(
-            args=['Delete S3 Error', f'Error with File: {file_name}', str(e), traceback.format_exc()]
-        )
         return False
     return True
 
@@ -303,18 +274,12 @@ def create_s3_file_from_binary_data(
         )
     except Exception as e:
         exec_str = traceback.format_exc()
-        send_error_mail.apply_async(
-            args=['AWS S3 File Creation Error | client()', f's3 filename: {s3_filename}', str(e), exec_str]
-        )
         return False
 
     try:
         s3_client.put_object(Body=binary_data, Bucket=s3_bucket, Key=s3_filename, ContentType=content_type)
     except Exception as e:
         exec_str = traceback.format_exc()
-        send_error_mail.apply_async(
-            args=['AWS S3 File Creation Error | put_object()', f's3 filename: {s3_filename}', str(e), exec_str]
-        )
         return False
 
     return True
@@ -343,9 +308,7 @@ def move_all_files_to_different_folder_s3(
         )
     except Exception as e:
         exec_str = traceback.format_exc()
-        send_error_mail.apply_async(
-            args=['AWS S3 File Movement Error| client()', f's3 source bucket: {source_bucket_name}', str(e), exec_str]
-        )
+        print(exec_str)
         return False
     # List all objects in the source folder
     response = s3_client.list_objects_v2(Bucket=source_bucket_name, Prefix=source_folder_path)
@@ -375,9 +338,6 @@ def get_excel_file_object_from_s3(bucket_name: str, file_with_location: str):
         )
     except Exception as e:
         exec_str = traceback.format_exc()
-        send_error_mail.apply_async(
-            args=['S3 Excel file obj| client()', f'bucket file: {bucket_name} {file_with_location}', str(e), exec_str]
-        )
         return False, ''
     obj = s3_client.get_object(Bucket=bucket_name, Key=file_with_location)
 
